@@ -1,0 +1,12 @@
+@echo off
+title Cinema WatchDog
+cd /d "%~dp0"
+if not exist ".venv\Scripts\python.exe" (
+  echo First run: creating virtual environment and installing packages...
+  python -m venv .venv || (echo Python 3.10+ is required: https://www.python.org/downloads/ & pause & exit /b 1)
+  ".venv\Scripts\python.exe" -m pip install --upgrade pip >nul
+  ".venv\Scripts\python.exe" -m pip install -r requirements.txt || (pause & exit /b 1)
+)
+start "" http://localhost:5000
+".venv\Scripts\python.exe" app.py
+pause

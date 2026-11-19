@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cinema WatchDog</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+<style>
+:root{
+  --bg:#0d0f14; --panel:#161a22; --panel2:#1d2230; --line:#2a3142; --text:#e8ebf2; --muted:#8b93a7;
+  --accent:#e50914; --accent2:#ff5c63; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444; --chip:#252b3a; --chipOn:#e50914;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+a{color:var(--accent2)}
+header{display:flex;align-items:center;gap:16px;padding:14px 24px;border-bottom:1px solid var(--line);background:#0b0d12;position:sticky;top:0;z-index:5}
+header h1{font-size:18px;margin:0;letter-spacing:.3px}
+header .status{margin-left:auto;color:var(--muted);font-size:13px;display:flex;gap:14px;align-items:center}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);display:inline-block;margin-right:6px;box-shadow:0 0 8px var(--ok)}
+.dot.busy{background:var(--warn);box-shadow:0 0 8px var(--warn);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.35}}
+main{max-width:1250px;margin:0 auto;padding:20px 24px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:20px}
+@media (max-width:980px){main{grid-template-columns:1fr;padding:16px}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+.card h2{margin:0 0 14px;font-size:16px}
+.field{margin-bottom:16px}
+.field > label, .lbl{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:7px;font-weight:600}
+.hint{color:var(--muted);font-size:12px;margin-top:5px}
+select,input[type=text],input[type=number],input[type=password],input[type=email]{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font:inherit}
+input[type=number]{width:90px}
+.cinemas{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cinema-btn{background:var(--panel2);border:2px solid var(--line);border-radius:10px;padding:12px;color:var(--text);cursor:pointer;text-align:left;font:inherit}
+.cinema-btn b{display:block;font-size:15px}
+.cinema-btn span{color:var(--muted);font-size:12px}
+.cinema-btn.on{border-color:var(--accent);background:#2a0f13}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{background:var(--chip);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:5px 12px;cursor:pointer;font:inherit;font-size:13px;user-select:none}
+.chip.on{background:var(--chipOn);border-color:var(--chipOn)}
+.chip.all{border-style:dashed}
+.chip.dim{opacity:.45}
+.chip small{opacity:.7}
+.row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+.btn.sm{padding:5px 10px;font-size:12px;font-weight:500}
+.btn.danger{background:transparent;border:1px solid #5b1f22;color:#ff8a8f}
+.toggle{display:flex;align-items:center;gap:8px;cursor:pointer}
+.empty{color:var(--muted);text-align:center;padding:24px 8px}
+.mon{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px;background:var(--panel2)}
+.mon.paused{opacity:.6}
+.mon .top{display:flex;gap:10px;align-items:flex-start}
+.mon .title{font-weight:700;font-size:15px}
+.mon .sub{color:var(--muted);font-size:12px}
+.mon .acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:#2b3245;color:#cdd3e1;margin-right:4px}
+.badge.ok{background:#11351f;color:#6ee7a0}
+.badge.err{background:#3b1416;color:#ff9da1}
+.badge.wait{background:#2f2a13;color:#fcd34d}
+.match{margin-top:10px;padding:10px;border-radius:8px;background:#0f2a1a;border:1px solid #1d5a35}
+.match a.book{background:var(--ok);color:#04130a;padding:3px 10px;border-radius:6px;text-decoration:none;font-weight:700;font-size:12px;margin-left:6px}
+.seatsline{font-size:12px;color:#b7f5cf;margin-top:2px;word-break:break-word}
+.log{max-height:260px;overflow:auto;font:12px/1.5 Consolas,monospace;background:#0a0c10;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.log .error{color:#ff8a8f}.log .warn{color:#fcd34d}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+/* seat map */
+.hall{overflow:auto;background:#0a0c10;border:1px solid var(--line);border-radius:10px;padding:12px;max-height:420px}
+.screen{margin:0 auto 14px;height:6px;width:70%;border-radius:0 0 50% 50%/0 0 100% 100%;background:linear-gradient(#cfd8ff,#5d6aa8);box-shadow:0 6px 18px #6b7cff55}
+.screenlbl{text-align:center;color:var(--muted);font-size:10px;letter-spacing:4px;margin:-8px 0 10px}
+.hrow{display:flex;align-items:center;gap:3px;margin-bottom:3px;white-space:nowrap}
+.rlbl{width:30px;text-align:center;font-size:11px;color:var(--muted);cursor:pointer;border-radius:4px;flex:none}
+.rlbl:hover{color:#fff;background:#252b3a}
+.rlbl.on{background:var(--accent);color:#fff}
+.seat{width:18px;height:18px;border-radius:4px 4px 6px 6px;flex:none;font-size:8px;display:flex;align-items:center;justify-content:center;color:#0008;cursor:pointer}
+.seat.gap{visibility:hidden}
+.seat.free{background:#22c55e}
+.seat.taken{background:#3a4152}
+.seat.sel{outline:2px solid #fff;background:var(--accent)}
+.seat.prem{box-shadow:inset 0 -4px 0 #f5c542}
+.seat.inrow{box-shadow:0 0 0 2px #ff5c6388 inset}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px}
+.notice{background:#1b2232;border:1px solid #2c3954;border-radius:8px;padding:10px 12px;color:#c3cde4;font-size:13px}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:20px;width:min(520px,92vw)}
+dialog::backdrop{background:#000a}
+.toast{position:fixed;right:20px;bottom:20px;background:#11351f;color:#d1fae5;border:1px solid #1d5a35;padding:12px 16px;border-radius:10px;display:none;max-width:420px;z-index:50}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #fff3;border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.full{grid-column:1/-1}
+#create.editing{border-color:var(--warn);box-shadow:0 0 0 1px var(--warn) inset}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎬 Cinema WatchDog</h1>
+  <div class="status">
+    <span id="st-dot"><span class="dot"></span><span id="st-text">Starting…</span></span>
+    <button class="btn ghost sm" id="btn-settings">⚙ Settings</button>
+  </div>
+</header>
+
+<main>
+  <!-- ======================= NEW MONITOR ======================= -->
+  <section class="card" id="create">
+    <h2 id="form-title">New monitor</h2>
+
+    <div class="field">
+      <span class="lbl">Cinema</span>
+      <div class="cinemas" id="cinemas"></div>
+    </div>
+
+    <div class="field">
+      <label for="movie">Movie</label>
+      <select id="movie" disabled><option>Choose a cinema first</option></select>
+    </div>
+
+    <div id="st-area" style="display:none">
+      <div class="field">
+        <span class="lbl">Dates</span>
+        <div class="chips" id="dates"></div>
+        <div class="hint">Nothing selected = watch every date the cinema has published (new dates are picked up automatically).</div>
+      </div>
+
+      <div class="field">
+        <span class="lbl" id="exp-lbl">Experience / hall</span>
+        <div class="chips" id="exps"></div>
+        <div class="hint" id="exp-hint"></div>
+      </div>
+
+      <div class="field">
+        <span class="lbl">Show times</span>
+        <div class="chips" id="times"></div>
+        <div class="hint">Nothing selected = all show times.</div>
+      </div>
+
+      <div class="field row" id="seatcount-field">
+        <div>
+          <span class="lbl">Seats needed</span>
+          <input type="number" id="seats-needed" min="1" max="50" value="2">
+        </div>
+        <label class="toggle" id="together-wrap" style="margin-top:18px">
+          <input type="checkbox" id="together" checked> Seats must be next to each other
+        </label>
+      </div>
+      <div class="field" id="split-field">
+        <span class="lbl">If they don't fit in one block</span>
+        <div class="row" style="gap:8px">
+          <span>Allow splitting into up to</span>
+          <select id="max-groups" style="width:auto">
+            <option value="1">1 group (never split)</option><option value="2" selected>2 groups</option>
+            <option value="3">3 groups</option><option value="4">4 groups</option>
+            <option value="5">5 groups</option><option value="6">6 groups</option>
+          </select>
+          <span>each with at least</span>
+          <input type="number" id="min-group" min="1" max="50" value="2">
+          <span>seats</span>
+        </div>
+        <div class="hint">Aisles break rows into blocks (Scene ScreenX: max 15 in a row). A whole block is always preferred; splitting is only used when no single block fits.</div>
+      </div>
+
+      <div id="seat-area">
+        <div class="field">
+          <span class="lbl">Rows &amp; specific seats <span style="text-transform:none;letter-spacing:0">(optional)</span></span>
+          <div class="row" style="margin-bottom:8px">
+            <select id="hall-src" style="flex:1;min-width:200px"></select>
+            <button class="btn ghost sm" id="btn-hall">Load seat map</button>
+          </div>
+          <div id="hall-wrap" style="display:none">
+            <div class="hall" id="hall"></div>
+            <div class="legend"><span><i style="background:#22c55e"></i>free now</span><span><i style="background:#3a4152"></i>taken now</span>
+              <span><i style="background:var(--accent)"></i>selected seat</span><span><i style="background:#3a4152;box-shadow:inset 0 -4px 0 #f5c542"></i>premium seat</span><span>Click a row letter to watch a whole row · click seats to watch only those seats</span></div>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <div style="flex:1;min-width:180px"><span class="lbl">Rows</span><input type="text" id="rows" placeholder="any row  (e.g. E, F, G)"></div>
+            <div style="flex:1;min-width:180px"><span class="lbl">Specific seats</span><input type="text" id="specific" placeholder="any seat (e.g. F10, F11)"></div>
+          </div>
+          <div class="hint">Leave both empty to accept any seats in the hall.</div>
+        </div>
+        <div class="field" id="types-field" style="display:none">
+          <span class="lbl">Seat type</span>
+          <div class="chips" id="types"></div>
+        </div>
+      </div>
+      <div class="notice" id="vox-note" style="display:none"></div>
+
+      <div class="row" style="margin-top:6px">
+        <button class="btn" id="btn-create">Start monitoring</button>
+        <button class="btn ghost" id="btn-cancel-edit" style="display:none">Cancel</button>
+        <span class="hint" id="create-msg"></span>
+      </div>
+    </div>
+    <div id="st-loading" class="empty" style="display:none"><span class="spinner"></span> Loading showtimes…</div>
+  </section>
+
+  <!-- ======================= MONITORS ======================= -->
+  <section class="card">
+    <div class="row" style="margin-bottom:12px"><h2 style="margin:0">Active monitors</h2>
+      <span class="hint" id="mon-count" style="margin:0 0 0 auto"></span></div>
+    <div id="monitors"><div class="empty">No monitors yet.</div></div>
+  </section>
+
+  <!-- ======================= ALERTS + LOG ======================= -->
+  <section class="card full">
+    <div class="tabs">
+      <button class="btn sm" data-tab="alerts">Alerts sent</button>
+      <button class="btn ghost sm" data-tab="log">Activity log</button>
+    </div>
+    <div id="tab-alerts"></div>
+    <div id="tab-log" style="display:none"><div class="log" id="log"></div></div>
+  </section>
+</main>
+
+<dialog id="dlg-settings">
+  <h2 style="margin-top:0">Settings</h2>
+  <div class="field"><label>Sender Gmail address</label><input type="email" id="s-user" placeholder="you@gmail.com"></div>
+  <div class="field"><label>Gmail app password</label><input type="password" id="s-pass" placeholder="16-character app password">
+    <div class="hint" id="s-pass-hint">Create one at myaccount.google.com/apppasswords (requires 2-Step Verification). Your normal Gmail password will not work.</div></div>
+  <div class="field"><label>Send alerts to (comma separated)</label><input type="text" id="s-rcpt"></div>
+  <div class="field"><label>Check every (seconds)</label><input type="number" id="s-int" min="30" step="10">
+    <div class="hint">Default 120. Going much lower than 60 risks the cinemas blocking you.</div></div>
+  <details style="margin-bottom:14px"><summary class="hint" style="cursor:pointer">Advanced SMTP</summary>
+    <div class="row" style="margin-top:8px"><input type="text" id="s-host" style="flex:1"><input type="number" id="s-port"></div></details>
+  <div class="row">
+    <button class="btn" id="s-save">Save</button>
+    <button class="btn ghost" id="s-test">Send test email</button>
+    <button class="btn ghost" id="s-close" style="margin-left:auto">Close</button>
+  </div>
+  <div class="hint" id="s-msg" style="margin-top:10px"></div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const el = (tag, attrs = {}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (v !== undefined && v !== null && v !== false) e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat()) if (k !== null && k !== undefined) e.append(k.nodeType ? k : document.createTextNode(k));
+  return e;
+};
+async function api(path, opts = {}) {
+  const r = await fetch(path, {headers: {'Content-Type': 'application/json'}, ...opts,
+    body: opts.body ? JSON.stringify(opts.body) : undefined});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+const fmtDate = iso => { const d = new Date(iso + 'T00:00'); return d.toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short'}); };
+const fmtTime = t => { let [h, m] = t.split(':').map(Number); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return `${h}:${String(m).padStart(2, '0')} ${ap}`; };
+const timeSortKey = t => { const [h, m] = t.split(':').map(Number); return (h < 6 ? h + 24 : h) * 60 + m; };
+function toast(msg, ms = 6000) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', ms); }
+
+// ---------------------------------------------------------------- state
+const S = {cinemas: [], cinema: null, movies: [], movie: null, showtimes: [],
+  dates: new Set(), exps: new Set(), times: new Set(), types: new Set(), hall: null};
+
+// ---------------------------------------------------------------- create form
+async function loadCinemas() {
+  S.cinemas = await api('/api/cinemas');
+  const box = $('#cinemas'); box.innerHTML = '';
+  for (const c of S.cinemas) {
+    box.append(el('button', {class: 'cinema-btn', 'data-key': c.key, onclick: () => pickCinema(c.key)},
+      el('b', {}, c.short), el('span', {}, c.supports_seats ? 'Seat-level monitoring' : 'Showtime-level monitoring')));
+  }
+}
+async function pickCinema(key, auto = true) {
+  S.cinema = S.cinemas.find(c => c.key === key);
+  document.querySelectorAll('.cinema-btn').forEach(b => b.classList.toggle('on', b.dataset.key === key));
+  const sel = $('#movie'); sel.disabled = true; sel.innerHTML = '<option>Loading movies…</option>';
+  $('#st-area').style.display = 'none';
+  try {
+    S.movies = await api('/api/movies?cinema=' + key);
+    sel.innerHTML = '';
+    sel.append(el('option', {value: ''}, '— choose a movie —'));
+    for (const m of S.movies) sel.append(el('option', {value: m.slug}, m.name));
+    sel.disabled = false;
+    const av = S.movies.filter(m => m.slug.includes('avengers'));
+    if (auto && av.length === 1) { sel.value = av[0].slug; await pickMovie(); }
+  } catch (e) { sel.innerHTML = `<option>${e.message}</option>`; }
+}
+$('#movie').addEventListener('change', pickMovie);
+
+async function pickMovie() {
+  const slug = $('#movie').value;
+  S.movie = S.movies.find(m => m.slug === slug);
+  $('#st-area').style.display = 'none';
+  if (!S.movie) return;
+  $('#st-loading').style.display = 'block';
+  try {
+    S.showtimes = await api(`/api/showtimes?cinema=${S.cinema.key}&movie=${slug}`);
+  } catch (e) { $('#st-loading').innerHTML = '⚠ ' + e.message; return; }
+  $('#st-loading').style.display = 'none';
+  S.dates.clear(); S.exps.clear(); S.times.clear(); S.types.clear(); S.hall = null;
+  $('#rows').value = ''; $('#specific').value = ''; $('#hall-wrap').style.display = 'none';
+  $('#st-area').style.display = 'block';
+  const seats = S.cinema.supports_seats;
+  $('#seat-area').style.display = seats ? 'block' : 'none';
+  $('#vox-note').style.display = 'none';
+  $('#seatcount-field').style.display = seats ? 'flex' : 'none';
+  syncSplit();
+  $('#exp-hint').textContent = S.cinema.key.startsWith('vox') ?
+    'VOX Almaza: Standard = normal hall (has Regular and Premium seats, pick below under Seat type), GOLD = premium recliner hall, MAX = Infinity Vision big screen.' :
+    'Scene halls: Standard, Premiere (premium recliners), ScreenX (270° screen).';
+  renderTypes();
+  if (S.showtimes.length === 0) {
+    $('#dates').innerHTML = '<span class="hint">No showtimes published yet. You can still create the monitor — it will pick them up as soon as they appear.</span>';
+  }
+  renderFilters();
+}
+
+function chip(label, on, onclick, extra = '') { return el('button', {class: 'chip ' + (on ? 'on ' : '') + extra, type: 'button', onclick}, ...[].concat(label)); }
+function toggleSet(set, v) { set.has(v) ? set.delete(v) : set.add(v); renderFilters(); }
+
+function filteredShowtimes() {
+  return S.showtimes.filter(s => (!S.dates.size || S.dates.has(s.date)) && (!S.exps.size || S.exps.has(s.experience)));
+}
+
+function renderFilters() {
+  const dates = [...new Set(S.showtimes.map(s => s.date).filter(Boolean))].sort();
+  const dbox = $('#dates'); if (S.showtimes.length) dbox.innerHTML = '';
+  if (dates.length) {
+    dbox.append(chip('All dates', !S.dates.size, () => { S.dates.clear(); renderFilters(); }, 'all'));
+    for (const d of dates) {
+      const all = S.showtimes.filter(s => s.date === d), sold = all.filter(s => !s.bookable).length;
+      dbox.append(chip([fmtDate(d), ' ', el('small', {}, sold === all.length ? '· sold out' : sold ? `· ${sold}/${all.length} sold out` : '')],
+        S.dates.has(d), () => toggleSet(S.dates, d)));
+    }
+  }
+  const exps = [...new Set(S.showtimes.map(s => s.experience))];
+  const ebox = $('#exps'); ebox.innerHTML = '';
+  ebox.append(chip('All', !S.exps.size, () => { S.exps.clear(); renderFilters(); }, 'all'));
+  for (const x of exps) ebox.append(chip(x, S.exps.has(x), () => toggleSet(S.exps, x)));
+
+  const pool = S.showtimes.filter(s => !S.exps.size || S.exps.has(s.experience));
+  const times = [...new Set(pool.map(s => s.time))].sort((a, b) => timeSortKey(a) - timeSortKey(b));
+  for (const t of [...S.times]) if (!times.includes(t)) S.times.delete(t);
+  const tbox = $('#times'); tbox.innerHTML = '';
+  tbox.append(chip('All times', !S.times.size, () => { S.times.clear(); renderFilters(); }, 'all'));
+  for (const t of times) {
+    const exList = [...new Set(pool.filter(s => s.time === t).map(s => s.experience))];
+    tbox.append(chip([fmtTime(t), ' ', el('small', {}, S.exps.size === 1 ? '' : '· ' + exList.join('/'))], S.times.has(t), () => toggleSet(S.times, t)));
+  }
+  // hall source list (Scene only)
+  if (S.cinema && S.cinema.supports_seats) {
+    const src = $('#hall-src'), prev = src.value; src.innerHTML = '';
+    const cands = filteredShowtimes().filter(s => s.bookable && s.showtime_id && (!S.times.size || S.times.has(s.time)));
+    if (!cands.length) src.append(el('option', {value: ''}, 'No bookable showtime to preview a seat map from'));
+    for (const s of cands) src.append(el('option', {value: s.showtime_id}, `${s.experience} · ${fmtDate(s.date)} · ${s.time_label}`));
+    if ([...src.options].some(o => o.value === prev)) src.value = prev;
+    $('#btn-hall').disabled = !cands.length;
+    renderTypes();
+  }
+}
+
+function renderTypes() {
+  const tf = $('#types-field');
+  const types = [...new Set([...((S.cinema && S.cinema.seat_types) || []),
+    ...(S.hall ? S.hall.seats.map(s => s.type).filter(Boolean) : [])])];
+  if (types.length < 2) { tf.style.display = 'none'; S.types.clear(); return; }
+  tf.style.display = 'block';
+  const box = $('#types'); box.innerHTML = '';
+  box.append(chip('Any', !S.types.size, () => { S.types.clear(); renderTypes(); }, 'all'));
+  for (const t of types) box.append(chip(t, S.types.has(t), () => { S.types.has(t) ? S.types.delete(t) : S.types.add(t); renderTypes(); }));
+}
+
+function syncSplit() {
+  const show = S.cinema && S.cinema.supports_seats && $('#together').checked && (+$('#seats-needed').value || 1) > 1;
+  $('#split-field').style.display = show ? 'block' : 'none';
+}
+$('#together').addEventListener('change', syncSplit);
+$('#seats-needed').addEventListener('input', syncSplit);
+
+// ---------------------------------------------------------------- seat map
+const csv = v => v.split(/[,;\s]+/).map(x => x.trim().toUpperCase()).filter(Boolean);
+$('#btn-hall').addEventListener('click', async () => {
+  const sid = $('#hall-src').value; if (!sid) return;
+  const b = $('#btn-hall'); b.disabled = true; b.innerHTML = '<span class="spinner"></span>';
+  try { S.hall = await api(`/api/hall?cinema=${S.cinema.key}&showtime_id=${sid}`); drawHall(); renderTypes(); }
+  catch (e) { toast('⚠ ' + e.message); }
+  b.disabled = false; b.textContent = 'Load seat map';
+});
+['rows', 'specific'].forEach(id => $('#' + id).addEventListener('input', () => S.hall && drawHall()));
+
+function drawHall() {
+  const h = $('#hall'); h.innerHTML = '';
+  $('#hall-wrap').style.display = 'block';
+  const seats = S.hall.seats; if (!seats.length) { h.textContent = 'Empty seat map'; return; }
+  const rows = csv($('#rows').value), spec = csv($('#specific').value);
+  const maxC = Math.max(...seats.map(s => s.c)), minC = Math.min(...seats.map(s => s.c));
+  const byR = {}; seats.forEach(s => (byR[s.r] ||= []).push(s));
+  // Scene renders its hall rotated 180°, so the highest grid row is nearest the screen.
+  const rIdx = Object.keys(byR).map(Number).sort((a, b) => b - a);
+  h.append(el('div', {class: 'screen'}), el('div', {class: 'screenlbl'}, 'SCREEN'));
+  for (const r of rIdx) {
+    const list = byR[r]; const letter = list[0].row;
+    const line = el('div', {class: 'hrow'});
+    const lbl = () => el('span', {class: 'rlbl' + (rows.includes(letter) ? ' on' : ''), title: 'Watch whole row ' + letter, onclick: () => toggleCsv('#rows', letter)}, letter);
+    line.append(lbl());
+    const map = {}; list.forEach(s => map[s.c] = s);
+    for (let c = maxC; c >= minC; c--) {
+      const s = map[c];
+      if (!s) { line.append(el('span', {class: 'seat gap'})); continue; }
+      const cls = ['seat', s.free ? 'free' : 'taken'];
+      if (/premium/i.test(s.type || '')) cls.push('prem');
+      if (spec.includes(s.label.toUpperCase())) cls.push('sel'); else if (rows.includes(s.row)) cls.push('inrow');
+      line.append(el('span', {class: cls.join(' '), title: `${s.label}${s.type ? ' · ' + s.type : ''} · ${s.free ? 'free now' : 'taken now'}`,
+        onclick: () => toggleCsv('#specific', s.label.toUpperCase())}, s.number));
+    }
+    line.append(lbl());
+    h.append(line);
+  }
+  const hint = el('div', {class: 'hint', style: 'margin-top:6px;text-align:center'}, `${S.hall.free} of ${S.hall.total} seats free right now in this showtime`);
+  h.append(hint);
+}
+function toggleCsv(sel, v) {
+  const list = csv($(sel).value); const i = list.indexOf(v);
+  i >= 0 ? list.splice(i, 1) : list.push(v);
+  $(sel).value = list.join(', '); drawHall();
+}
+
+// ---------------------------------------------------------------- create
+$('#btn-create').addEventListener('click', async () => {
+  const seats = S.cinema.supports_seats;
+  const body = {
+    cinema: S.cinema.key, movie_slug: S.movie.slug, movie_name: S.movie.name,
+    dates: [...S.dates], experiences: [...S.exps], times: [...S.times],
+    seats_needed: seats ? +$('#seats-needed').value || 1 : 1,
+    together: seats && $('#together').checked,
+    max_groups: seats && $('#together').checked ? +$('#max-groups').value : 1,
+    min_group: +$('#min-group').value || 1,
+    rows: seats ? csv($('#rows').value) : [], specific_seats: seats ? csv($('#specific').value) : [],
+    seat_types: seats ? [...S.types] : [],
+  };
+  const b = $('#btn-create'); b.disabled = true;
+  try {
+    if (S.editing) {
+      await api(`/api/monitors/${S.editing.id}`, {method: 'PUT', body: {...body, active: S.editing.active}});
+      toast('✅ Monitor updated — re-checking now with the new settings.');
+      setEditMode(null);
+    } else {
+      await api('/api/monitors', {method: 'POST', body});
+      toast('✅ Monitor created — first check is running now.');
+    }
+    loadMonitors(); setTimeout(loadMonitors, 8000);
+  } catch (e) { toast('⚠ ' + e.message); }
+  b.disabled = false;
+});
+
+// ---------------------------------------------------------------- edit
+function setEditMode(m) {
+  S.editing = m;
+  $('#form-title').textContent = m ? `Edit monitor — ${m.movie_name}` : 'New monitor';
+  $('#btn-create').textContent = m ? 'Save changes' : 'Start monitoring';
+  $('#btn-cancel-edit').style.display = m ? 'inline-block' : 'none';
+  $('#create').classList.toggle('editing', !!m);
+}
+$('#btn-cancel-edit').addEventListener('click', () => setEditMode(null));
+
+async function editMonitor(m) {
+  setEditMode(m);
+  $('#create').scrollIntoView({behavior: 'smooth', block: 'start'});
+  await pickCinema(m.cinema, false);
+  const sel = $('#movie');
+  if (!S.movies.some(x => x.slug === m.movie_slug)) {   // no longer listed on the site
+    S.movies.push({slug: m.movie_slug, name: m.movie_name});
+    sel.append(el('option', {value: m.movie_slug}, m.movie_name));
+  }
+  sel.value = m.movie_slug;
+  await pickMovie();
+  if (S.editing !== m) return;  // user cancelled while loading
+  m.dates.forEach(d => S.dates.add(d)); m.experiences.forEach(x => S.exps.add(x));
+  m.times.forEach(t => S.times.add(t)); (m.seat_types || []).forEach(t => S.types.add(t));
+  $('#seats-needed').value = m.seats_needed || 1;
+  $('#together').checked = !!m.together;
+  $('#max-groups').value = String(m.max_groups || 1);
+  $('#min-group').value = m.min_group || 1;
+  $('#rows').value = (m.rows || []).join(', ');
+  $('#specific').value = (m.specific_seats || []).join(', ');
+  // renderFilters drops times that no longer exist; keep the saved ones visible as chips
+  const known = new Set(S.showtimes.map(s => s.time));
+  m.times.filter(t => !known.has(t)).forEach(t => S.showtimes.push({date: '', time: t, time_label: fmtTime(t),
+    experience: m.experiences[0] || '', bookable: false, showtime_id: null, placeholder: true}));
+  syncSplit(); renderFilters(); renderTypes();
+}
+
+// ---------------------------------------------------------------- monitors list
+function describe(m) {
+  const c = S.cinemas.find(x => x.key === m.cinema);
+  const bits = [];
+  bits.push(m.dates.length ? m.dates.map(fmtDate).join(', ') : 'all dates');
+  bits.push(m.experiences.length ? m.experiences.join(' / ') : 'any experience');
+  bits.push(m.times.length ? m.times.sort((a, b) => timeSortKey(a) - timeSortKey(b)).map(fmtTime).join(', ') : 'any time');
+  if (c && c.supports_seats) {
+    bits.push(`${m.seats_needed} seat${m.seats_needed > 1 ? 's' : ''}${m.together && m.seats_needed > 1 ? ' together' : ''}`);
+    if (m.together && m.seats_needed > 1 && (m.max_groups || 1) > 1)
+      bits.push(`split into ≤${m.max_groups} groups of ≥${m.min_group || 1}`);
+    if (m.rows.length) bits.push('rows ' + m.rows.join(','));
+    if (m.specific_seats.length) bits.push('seats ' + m.specific_seats.join(','));
+    if ((m.seat_types || []).length) bits.push(m.seat_types.join('/'));
+  }
+  return bits.join(' · ');
+}
+async function loadMonitors() {
+  const mons = await api('/api/monitors');
+  const box = $('#monitors'); box.innerHTML = '';
+  $('#mon-count').textContent = mons.length ? `${mons.filter(m => m.active).length} running` : '';
+  if (!mons.length) { box.append(el('div', {class: 'empty'}, 'No monitors yet. Create one on the left.')); return; }
+  for (const m of mons.slice().reverse()) {
+    const c = S.cinemas.find(x => x.key === m.cinema) || {short: m.cinema};
+    const st = m.state || {};
+    const badges = [];
+    if (!m.active) badges.push(el('span', {class: 'badge'}, 'paused'));
+    else if (!st.last_check) badges.push(el('span', {class: 'badge wait'}, 'first check pending'));
+    else if ((st.matches || []).length) badges.push(el('span', {class: 'badge ok'}, `${st.matches.length} available`));
+    else badges.push(el('span', {class: 'badge'}, 'watching'));
+    if (st.error) badges.push(el('span', {class: 'badge err', title: st.error}, 'error'));
+    const card = el('div', {class: 'mon' + (m.active ? '' : ' paused')},
+      el('div', {class: 'top'},
+        el('div', {},
+          el('div', {class: 'title'}, m.movie_name),
+          el('div', {class: 'sub'}, c.short + ' · ' + describe(m)),
+          el('div', {style: 'margin-top:6px'}, badges, el('span', {class: 'sub'}, st.last_check ? `checked ${st.last_check.slice(11)} · ${st.summary || ''}` : ''))),
+        el('div', {class: 'acts'},
+          el('button', {class: 'btn ghost sm', onclick: async e => { e.target.innerHTML = '<span class="spinner"></span>'; try { await api(`/api/monitors/${m.id}/check`, {method: 'POST'}); } catch (x) { toast(x.message); } loadMonitors(); }}, 'Check now'),
+          el('button', {class: 'btn ghost sm', onclick: () => editMonitor(m)}, 'Edit'),
+          el('button', {class: 'btn ghost sm', onclick: async () => { await api(`/api/monitors/${m.id}`, {method: 'PUT', body: {active: !m.active}}); loadMonitors(); }}, m.active ? 'Pause' : 'Resume'),
+          el('button', {class: 'btn danger sm', onclick: async () => { if (confirm('Delete this monitor?')) { await api(`/api/monitors/${m.id}`, {method: 'DELETE'}); loadMonitors(); } }}, 'Delete'))));
+    if (st.error) card.append(el('div', {class: 'sub', style: 'color:#ff9da1;margin-top:6px'}, '⚠ ' + st.error));
+    if ((st.matches || []).length) {
+      const mbox = el('div', {class: 'match'}, el('b', {}, '🎟 Available right now'));
+      for (const x of st.matches.slice(0, 12)) {
+        mbox.append(el('div', {style: 'margin-top:6px'},
+          `${fmtDate(x.date)} · ${x.time_label} · ${x.experience}`,
+          el('a', {class: 'book', href: x.url, target: '_blank', rel: 'noopener'}, 'Book'),
+          x.seat_level ? el('div', {class: 'seatsline'}, (x.split ? 'Split: ' : '') + (x.seats || []).join('  |  ')) : null));
+      }
+      if (st.matches.length > 12) mbox.append(el('div', {class: 'sub'}, `+${st.matches.length - 12} more`));
+      card.append(mbox);
+    }
+    box.append(card);
+  }
+}
+
+// ---------------------------------------------------------------- status / alerts / log
+let lastAlertAt = null;
+async function loadStatus() {
+  let s; try { s = await api('/api/status'); } catch { $('#st-text').textContent = 'App not reachable'; return; }
+  $('#st-dot .dot').classList.toggle('busy', s.cycle_running);
+  $('#st-text').textContent = s.cycle_running ? 'Checking cinemas…' :
+    (s.last_cycle_at ? `Last check ${s.last_cycle_at.slice(11)}` : 'Idle') + (s.next_cycle_at ? ` · next ~${s.next_cycle_at}` : '');
+  $('#log').innerHTML = '';
+  for (const e of s.events) $('#log').append(el('div', {class: e.level}, `${e.at.slice(5)}  ${e.msg}`));
+  const ab = $('#tab-alerts'); ab.innerHTML = '';
+  if (!s.alerts.length) ab.append(el('div', {class: 'empty'}, 'No alerts yet — you will see every email that was sent here.'));
+  for (const a of s.alerts) {
+    ab.append(el('div', {class: 'mon'},
+      el('div', {class: 'title'}, `${a.movie} — ${a.cinema}`),
+      el('div', {class: 'sub'}, `${a.at} · ${a.emailed ? '📧 emailed' : '⚠ email failed (check Settings)'}`),
+      a.showtimes.map(x => el('div', {style: 'margin-top:4px'}, `${fmtDate(x.date)} · ${x.time_label} · ${x.experience} `,
+        el('a', {href: x.url, target: '_blank', rel: 'noopener'}, 'book'),
+        x.seats && x.seats.length ? el('span', {class: 'sub'}, '  ' + x.seats.slice(0, 6).join(' | ')) : null))));
+  }
+  const newest = s.alerts[0] && s.alerts[0].at;
+  if (lastAlertAt && newest && newest !== lastAlertAt) {
+    toast(`🎟 Seats available: ${s.alerts[0].movie} (${s.alerts[0].cinema})`, 15000);
+    beep(); loadMonitors();
+    if ('Notification' in window && Notification.permission === 'granted') new Notification('🎟 Seats available!', {body: `${s.alerts[0].movie} — ${s.alerts[0].cinema}`});
+  }
+  lastAlertAt = newest || lastAlertAt || 'none';
+}
+function beep() { try { const a = new AudioContext(), o = a.createOscillator(), g = a.createGain(); o.connect(g); g.connect(a.destination); o.frequency.value = 880; g.gain.value = .15; o.start(); setTimeout(() => { o.frequency.value = 1320; }, 180); setTimeout(() => o.stop(), 420); } catch {} }
+document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-tab]').forEach(x => x.classList.toggle('ghost', x !== b));
+  $('#tab-alerts').style.display = b.dataset.tab === 'alerts' ? 'block' : 'none';
+  $('#tab-log').style.display = b.dataset.tab === 'log' ? 'block' : 'none';
+}));
+
+// ---------------------------------------------------------------- settings
+async function openSettings() {
+  const s = await api('/api/settings');
+  $('#s-user').value = s.smtp_user || ''; $('#s-pass').value = '';
+  $('#s-pass').placeholder = s.smtp_password_set ? '•••••••• (saved — leave blank to keep)' : '16-character app password';
+  $('#s-rcpt').value = (s.recipients || []).join(', '); $('#s-int').value = s.interval_seconds;
+  $('#s-host').value = s.smtp_host; $('#s-port').value = s.smtp_port; $('#s-msg').textContent = '';
+  $('#dlg-settings').showModal();
+}
+async function saveSettings() {
+  return api('/api/settings', {method: 'POST', body: {smtp_user: $('#s-user').value.trim(), smtp_password: $('#s-pass').value.trim(),
+    recipients: $('#s-rcpt').value, interval_seconds: +$('#s-int').value, smtp_host: $('#s-host').value.trim(), smtp_port: +$('#s-port').value}});
+}
+$('#btn-settings').addEventListener('click', openSettings);
+$('#s-close').addEventListener('click', () => $('#dlg-settings').close());
+$('#s-save').addEventListener('click', async () => { try { await saveSettings(); $('#s-msg').textContent = '✅ Saved'; } catch (e) { $('#s-msg').textContent = '⚠ ' + e.message; } });
+$('#s-test').addEventListener('click', async () => {
+  $('#s-msg').innerHTML = '<span class="spinner"></span> Sending…';
+  try { await saveSettings(); const r = await api('/api/test-email', {method: 'POST'}); $('#s-msg').textContent = '✅ Test email sent to ' + r.to.join(', '); }
+  catch (e) { $('#s-msg').textContent = '⚠ ' + e.message; }
+});
+
+// ---------------------------------------------------------------- boot
+(async () => {
+  await loadCinemas();
+  await loadMonitors(); loadStatus();
+  setInterval(loadStatus, 8000); setInterval(loadMonitors, 30000);
+  const s = await api('/api/settings');
+  if (!s.smtp_user || !s.smtp_password_set) { toast('👋 First, open ⚙ Settings and add a Gmail app password so alerts can be emailed.', 12000); }
+  if ('Notification' in window && Notification.permission === 'default') document.body.addEventListener('click', () => Notification.requestPermission(), {once: true});
+})();
+</script>
+</body>
+</html>

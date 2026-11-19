@@ -7,6 +7,5 @@ if not exist ".venv\Scripts\python.exe" (
   ".venv\Scripts\python.exe" -m pip install --upgrade pip >nul
   ".venv\Scripts\python.exe" -m pip install -r requirements.txt || (pause & exit /b 1)
 )
-start "" http://localhost:5000
-".venv\Scripts\python.exe" app.py
+".venv\Scripts\python.exe" app.py --open
 pause

@@ -47,12 +47,23 @@ class Store:
     def settings(self) -> dict:
         with self._lock:
             s = dict(DEFAULT_SETTINGS)
+            env = os.environ
+            # defaults from the environment / .env (the Settings page can change these)
+            if env.get("CWD_RECIPIENTS"):
+                s["recipients"] = [r.strip() for r in env["CWD_RECIPIENTS"].replace(";", ",").split(",")
+                                   if r.strip()]
+            if env.get("CWD_INTERVAL_SECONDS", "").isdigit():
+                s["interval_seconds"] = max(30, int(env["CWD_INTERVAL_SECONDS"]))
             s.update(self._read(self._set_path, {}))
-            # environment variables win (handy for not storing the password on disk)
-            if os.environ.get("CWD_SMTP_USER"):
-                s["smtp_user"] = os.environ["CWD_SMTP_USER"]
-            if os.environ.get("CWD_SMTP_PASSWORD"):
-                s["smtp_password"] = os.environ["CWD_SMTP_PASSWORD"]
+            # mail server settings from the environment always win, so the password never has to be on disk
+            if env.get("CWD_SMTP_HOST"):
+                s["smtp_host"] = env["CWD_SMTP_HOST"]
+            if env.get("CWD_SMTP_PORT", "").isdigit():
+                s["smtp_port"] = int(env["CWD_SMTP_PORT"])
+            if env.get("CWD_SMTP_USER"):
+                s["smtp_user"] = env["CWD_SMTP_USER"]
+            if env.get("CWD_SMTP_PASSWORD"):
+                s["smtp_password"] = env["CWD_SMTP_PASSWORD"]
             return s
 
     def save_settings(self, patch: dict) -> dict:

@@ -22,6 +22,27 @@ except Exception:
     pass
 
 ROOT = Path(__file__).resolve().parent
+
+
+def load_dotenv(path: Path) -> None:
+    """Minimal .env reader: KEY=VALUE lines, # comments. Real environment variables win."""
+    if not path.is_file():
+        return
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        key, val = key.strip().removeprefix("export ").strip(), val.strip()
+        if len(val) >= 2 and val[0] == val[-1] and val[0] in "\"'":
+            val = val[1:-1]
+        elif " #" in val:
+            val = val.split(" #", 1)[0].rstrip()
+        if key and val:
+            os.environ.setdefault(key, val)
+
+
+load_dotenv(ROOT / ".env")
 DATA = Path(os.environ.get("CWD_DATA_DIR", ROOT / "data"))
 DATA.mkdir(parents=True, exist_ok=True)
 

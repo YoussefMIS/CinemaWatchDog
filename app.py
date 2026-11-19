@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import sys
 import threading
 import time
@@ -134,7 +135,8 @@ def hall():
 
 
 # ---- monitors
-FIELDS = ["cinema", "movie_slug", "movie_name", "dates", "times", "experiences", "seats_needed",
+FIELDS = ["cinema", "movie_slug", "movie_name", "dates", "times", "time_from", "time_to",
+          "experiences", "seats_needed",
           "together", "max_groups", "min_group", "rows", "specific_seats", "seat_types", "active", "label"]
 
 
@@ -151,6 +153,11 @@ def clean_monitor(body: dict) -> dict:
     m["together"] = bool(m.get("together"))
     m["max_groups"] = max(1, min(6, int(m.get("max_groups") or 1))) if m["together"] else 1
     m["min_group"] = max(1, min(m["seats_needed"], int(m.get("min_group") or 1)))
+    for k in ("time_from", "time_to"):
+        v = str(m.get(k) or "").strip()
+        m[k] = f"{int(v[:-3]):02d}:{v[-2:]}" if re.fullmatch(r"([01]?\d|2[0-3]):[0-5]\d", v) else ""
+    if m["time_from"] or m["time_to"]:
+        m["times"] = []  # a time window replaces exact show times
     return m
 
 

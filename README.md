@@ -35,7 +35,8 @@ and your data never leaves your machine.
 
 | | Scene CFC | VOX Almaza |
 |---|:---:|:---:|
-| Choose a movie, dates and show times (leave empty for all) | ✅ | ✅ |
+| Choose a movie and dates (leave empty for all) | ✅ | ✅ |
+| Watch a **time window** (e.g. 7 PM – 11 PM), including showtimes added later | ✅ | ✅ |
 | Filter by experience / hall | ScreenX · Premiere · Standard | Standard · GOLD · MAX (Infinity Vision) |
 | Number of seats, side by side | ✅ | ✅ |
 | Split a large group across several blocks | ✅ | ✅ |
@@ -140,17 +141,24 @@ Real environment variables take priority over values in `.env`.
 ## Using the app
 
 1. **Pick a cinema**, then a **movie**. Avengers titles are listed first.
-2. Optionally narrow it down by **date**, **experience** (e.g. ScreenX, MAX) and **show time**.
-   Anything you leave empty means "all".
-3. Set the **number of seats** and whether they must be **next to each other**.
-4. Optionally restrict it to **rows** or **specific seats**. Type them in (e.g. `E, F, G` or `F10, F11`)
+2. Optionally narrow it down by **date** and **experience** (e.g. ScreenX, MAX). Anything you leave
+   empty means "all".
+3. Choose which **show times** to watch:
+   - **Any time:** every showtime.
+   - **Time window:** every showtime that starts between two times, e.g. 7:00 PM – 11:00 PM. This
+     includes showtimes the cinema adds later, so it's the best choice for popular releases. Leave one
+     side empty for "from …" or "until …". Windows can cross midnight (e.g. 9:00 PM – 1:00 AM).
+   - **Exact times:** only the specific showtimes you pick.
+4. Set the **number of seats** and whether they must be **next to each other**.
+5. Optionally restrict it to **rows** or **specific seats**. Type them in (e.g. `E, F, G` or `F10, F11`)
    or click them on the seat map. For VOX, you can also choose **Regular** and/or **Premium** seats.
-5. Click **Start monitoring**. The first check runs straight away.
+6. Click **Start monitoring**. The first check runs straight away.
 
 ### Matching rules
 
 | Setting | Meaning |
 |---|---|
+| **Time window** | The showtime's start time is inside the window (both ends included). After-midnight shows count as part of the previous night. |
 | **Seats needed + next to each other** | N free seats in one row with no gap or aisle between them. |
 | **Split into up to N groups of at least M seats** | Used only when no single block fits the whole party, e.g. 16 seats as 8 + 8. |
 | **Rows** | Only seats in these rows count. |

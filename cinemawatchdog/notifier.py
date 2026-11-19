@@ -27,7 +27,14 @@ def _criteria(mon: dict, seat_level: bool = True) -> str:
         parts.append("seats: " + ", ".join(mon["specific_seats"]))
     if mon.get("seat_types"):
         parts.append("seat type: " + ", ".join(mon["seat_types"]))
-    if mon.get("times"):
+    frm, to = mon.get("time_from"), mon.get("time_to")
+    if frm and to:
+        parts.append(f"shows between {frm} and {to}")
+    elif frm:
+        parts.append(f"shows from {frm}")
+    elif to:
+        parts.append(f"shows until {to}")
+    elif mon.get("times"):
         parts.append("times: " + ", ".join(mon["times"]))
     return " · ".join(parts) or "any bookable showtime"
 

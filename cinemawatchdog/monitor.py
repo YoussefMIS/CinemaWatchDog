@@ -26,10 +26,30 @@ def showtime_start(st: Showtime) -> datetime:
     return d
 
 
+def night_minutes(hhmm: str) -> int:
+    """Minutes since 06:00-based "cinema night": 01:30 counts as after 23:00 of the same night."""
+    h, m = map(int, hhmm.split(":"))
+    return (h + 24 if h < 6 else h) * 60 + m
+
+
+def in_time_range(t: str, frm: str | None, to: str | None) -> bool:
+    """Is show time t inside [frm, to]? Either end may be empty. A window that crosses
+    midnight (e.g. 21:00 to 01:00) works because times are compared on the cinema night."""
+    if not frm and not to:
+        return True
+    k = night_minutes(t)
+    lo = night_minutes(frm) if frm else night_minutes("06:00")
+    hi = night_minutes(to) if to else night_minutes("05:59")
+    return lo <= k <= hi if lo <= hi else (k >= lo or k <= hi)
+
+
 def passes_showtime_filters(mon: dict, st: Showtime) -> bool:
     if mon.get("dates") and st.date not in mon["dates"]:
         return False
-    if mon.get("times") and st.time not in mon["times"]:
+    if mon.get("time_from") or mon.get("time_to"):
+        if not in_time_range(st.time, mon.get("time_from"), mon.get("time_to")):
+            return False
+    elif mon.get("times") and st.time not in mon["times"]:
         return False
     if mon.get("experiences") and st.experience not in mon["experiences"]:
         return False

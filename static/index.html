@@ -28,6 +28,12 @@ main{max-width:1250px;margin:0 auto;padding:20px 24px;display:grid;grid-template
 .hint{color:var(--muted);font-size:12px;margin-top:5px}
 select,input[type=text],input[type=number],input[type=password],input[type=email]{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font:inherit}
 input[type=number]{width:90px}
+input[type=time]{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;color-scheme:dark;width:130px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin-bottom:10px;flex-wrap:wrap}
+.seg button{background:transparent;border:0;color:var(--muted);padding:6px 14px;font:inherit;font-size:13px;cursor:pointer}
+.seg button.on{background:var(--chipOn);color:var(--text)}
+.range{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.range .x{color:var(--muted);font-size:13px}
 .cinemas{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .cinema-btn{background:var(--panel2);border:2px solid var(--line);border-radius:10px;padding:12px;color:var(--text);cursor:pointer;text-align:left;font:inherit}
 .cinema-btn b{display:block;font-size:15px}
@@ -129,8 +135,25 @@ dialog::backdrop{background:#000a}
 
       <div class="field">
         <span class="lbl">Show times</span>
-        <div class="chips" id="times"></div>
-        <div class="hint">Nothing selected = all show times.</div>
+        <div class="seg" id="time-mode">
+          <button type="button" data-mode="all">Any time</button>
+          <button type="button" data-mode="range">Time window</button>
+          <button type="button" data-mode="exact">Exact times</button>
+        </div>
+        <div id="time-range" style="display:none">
+          <div class="range">
+            <span class="x">From</span><input type="time" id="time-from" step="300">
+            <span class="x">to</span><input type="time" id="time-to" step="300">
+          </div>
+          <div class="hint">Watches every showtime that starts in this window, <b>including ones the cinema adds later</b>.
+            Leave one side empty for "from …" or "until …". A window can cross midnight (e.g. 9:00 PM – 1:00 AM).</div>
+          <div class="hint" id="range-preview"></div>
+        </div>
+        <div id="time-exact" style="display:none">
+          <div class="chips" id="times"></div>
+          <div class="hint">Only the show times you pick. Showtimes added later at other times are ignored, so use a time window for that.</div>
+        </div>
+        <div class="hint" id="time-all-hint">Every show time, including ones added later.</div>
       </div>
 
       <div class="field row" id="seatcount-field">
@@ -255,7 +278,33 @@ function toast(msg, ms = 6000) { const t = $('#toast'); t.textContent = msg; t.s
 
 // ---------------------------------------------------------------- state
 const S = {cinemas: [], cinema: null, movies: [], movie: null, showtimes: [],
-  dates: new Set(), exps: new Set(), times: new Set(), types: new Set(), hall: null};
+  dates: new Set(), exps: new Set(), times: new Set(), types: new Set(), hall: null, timeMode: 'all'};
+
+// ---------------------------------------------------------------- show-time filter
+const inWindow = (t, from, to) => {   // mirrors monitor.in_time_range (cinema night starts 06:00)
+  if (!from && !to) return true;
+  const k = timeSortKey(t), lo = timeSortKey(from || '06:00'), hi = timeSortKey(to || '05:59');
+  return lo <= hi ? (k >= lo && k <= hi) : (k >= lo || k <= hi);
+};
+function timeOk(t) {
+  if (S.timeMode === 'range') return inWindow(t, $('#time-from').value, $('#time-to').value);
+  if (S.timeMode === 'exact') return !S.times.size || S.times.has(t);
+  return true;
+}
+function setTimeMode(mode) {
+  S.timeMode = mode;
+  document.querySelectorAll('#time-mode button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+  $('#time-range').style.display = mode === 'range' ? 'block' : 'none';
+  $('#time-exact').style.display = mode === 'exact' ? 'block' : 'none';
+  $('#time-all-hint').style.display = mode === 'all' ? 'block' : 'none';
+  if (mode === 'range' && !$('#time-from').value && !$('#time-to').value) $('#time-from').value = '18:00';
+}
+document.querySelectorAll('#time-mode button').forEach(b => b.addEventListener('click', () => { setTimeMode(b.dataset.mode); renderFilters(); }));
+['#time-from', '#time-to'].forEach(id => $(id).addEventListener('input', () => renderFilters()));
+function windowLabel(from, to) {
+  if (from && to) return `${fmtTime(from)} – ${fmtTime(to)}`;
+  return from ? `from ${fmtTime(from)}` : `until ${fmtTime(to)}`;
+}
 
 // ---------------------------------------------------------------- create form
 async function loadCinemas() {
@@ -294,6 +343,7 @@ async function pickMovie() {
   } catch (e) { $('#st-loading').innerHTML = '⚠ ' + e.message; return; }
   $('#st-loading').style.display = 'none';
   S.dates.clear(); S.exps.clear(); S.times.clear(); S.types.clear(); S.hall = null;
+  $('#time-from').value = ''; $('#time-to').value = ''; setTimeMode('all');
   $('#rows').value = ''; $('#specific').value = ''; $('#hall-wrap').style.display = 'none';
   $('#st-area').style.display = 'block';
   const seats = S.cinema.supports_seats;
@@ -343,10 +393,18 @@ function renderFilters() {
     const exList = [...new Set(pool.filter(s => s.time === t).map(s => s.experience))];
     tbox.append(chip([fmtTime(t), ' ', el('small', {}, S.exps.size === 1 ? '' : '· ' + exList.join('/'))], S.times.has(t), () => toggleSet(S.times, t)));
   }
+  if (S.timeMode === 'range') {
+    const from = $('#time-from').value, to = $('#time-to').value;
+    const inside = filteredShowtimes().filter(s => !s.placeholder && inWindow(s.time, from, to));
+    const ts = [...new Set(inside.map(s => s.time))].sort((a, b) => timeSortKey(a) - timeSortKey(b));
+    $('#range-preview').textContent = !from && !to ? 'Set at least one end of the window.' :
+      ts.length ? `Right now ${inside.length} showtime${inside.length > 1 ? 's' : ''} fall in this window: ${ts.map(fmtTime).join(', ')}.`
+                : 'No published showtimes fall in this window yet. The monitor will pick them up when they appear.';
+  }
   // hall source list (Scene only)
   if (S.cinema && S.cinema.supports_seats) {
     const src = $('#hall-src'), prev = src.value; src.innerHTML = '';
-    const cands = filteredShowtimes().filter(s => s.bookable && s.showtime_id && (!S.times.size || S.times.has(s.time)));
+    const cands = filteredShowtimes().filter(s => s.bookable && s.showtime_id && timeOk(s.time));
     if (!cands.length) src.append(el('option', {value: ''}, 'No bookable showtime to preview a seat map from'));
     for (const s of cands) src.append(el('option', {value: s.showtime_id}, `${s.experience} · ${fmtDate(s.date)} · ${s.time_label}`));
     if ([...src.options].some(o => o.value === prev)) src.value = prev;
@@ -426,7 +484,10 @@ $('#btn-create').addEventListener('click', async () => {
   const seats = S.cinema.supports_seats;
   const body = {
     cinema: S.cinema.key, movie_slug: S.movie.slug, movie_name: S.movie.name,
-    dates: [...S.dates], experiences: [...S.exps], times: [...S.times],
+    dates: [...S.dates], experiences: [...S.exps],
+    times: S.timeMode === 'exact' ? [...S.times] : [],
+    time_from: S.timeMode === 'range' ? $('#time-from').value : '',
+    time_to: S.timeMode === 'range' ? $('#time-to').value : '',
     seats_needed: seats ? +$('#seats-needed').value || 1 : 1,
     together: seats && $('#together').checked,
     max_groups: seats && $('#together').checked ? +$('#max-groups').value : 1,
@@ -434,6 +495,7 @@ $('#btn-create').addEventListener('click', async () => {
     rows: seats ? csv($('#rows').value) : [], specific_seats: seats ? csv($('#specific').value) : [],
     seat_types: seats ? [...S.types] : [],
   };
+  if (S.timeMode === 'range' && !body.time_from && !body.time_to) { toast('⚠ Set a start and/or end time for the time window.'); return; }
   const b = $('#btn-create'); b.disabled = true;
   try {
     if (S.editing) {
@@ -473,6 +535,8 @@ async function editMonitor(m) {
   if (S.editing !== m) return;  // user cancelled while loading
   m.dates.forEach(d => S.dates.add(d)); m.experiences.forEach(x => S.exps.add(x));
   m.times.forEach(t => S.times.add(t)); (m.seat_types || []).forEach(t => S.types.add(t));
+  $('#time-from').value = m.time_from || ''; $('#time-to').value = m.time_to || '';
+  setTimeMode(m.time_from || m.time_to ? 'range' : m.times.length ? 'exact' : 'all');
   $('#seats-needed').value = m.seats_needed || 1;
   $('#together').checked = !!m.together;
   $('#max-groups').value = String(m.max_groups || 1);
@@ -492,7 +556,8 @@ function describe(m) {
   const bits = [];
   bits.push(m.dates.length ? m.dates.map(fmtDate).join(', ') : 'all dates');
   bits.push(m.experiences.length ? m.experiences.join(' / ') : 'any experience');
-  bits.push(m.times.length ? m.times.sort((a, b) => timeSortKey(a) - timeSortKey(b)).map(fmtTime).join(', ') : 'any time');
+  bits.push(m.time_from || m.time_to ? windowLabel(m.time_from, m.time_to) :
+    m.times.length ? m.times.sort((a, b) => timeSortKey(a) - timeSortKey(b)).map(fmtTime).join(', ') : 'any time');
   if (c && c.supports_seats) {
     bits.push(`${m.seats_needed} seat${m.seats_needed > 1 ? 's' : ''}${m.together && m.seats_needed > 1 ? ' together' : ''}`);
     if (m.together && m.seats_needed > 1 && (m.max_groups || 1) > 1)

@@ -10,7 +10,7 @@ cinema, date, time and seats, with a direct booking link.
 It's a small web app that runs on your own computer. You don't need an account, hosting or a subscription,
 and your data never leaves your machine.
 
-![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![License: MIT](https://img.shields.io/badge/license-MIT-green) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
 
 ---
 
@@ -27,6 +27,7 @@ and your data never leaves your machine.
 - [Privacy and security](#privacy-and-security)
 - [Project structure](#project-structure)
 - [Disclaimer](#disclaimer)
+- [License](#license)
 
 ---
 
@@ -232,6 +233,7 @@ static/index.html             The web interface
 start.bat                     Windows launcher (sets up .venv on first run)
 install-autostart.ps1         Optional: start automatically at Windows login
 .env.example                  Configuration template
+LICENSE                       MIT license
 ```
 
 ## Disclaimer
@@ -241,3 +243,7 @@ to** Scene Cinemas, VOX Cinemas or Majid Al Futtaim. It reads the same public pa
 browser and never makes bookings. Please use it responsibly: keep the check interval reasonable and don't
 run many copies at once. The cinemas can change their websites at any time, which may break monitoring
 until the app is updated.
+
+## License
+
+Released under the [MIT License](LICENSE). You're free to use, modify and share it.

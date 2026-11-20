@@ -81,7 +81,7 @@ def send_alert_email(settings: dict, prov, mon: dict, showtimes: list[dict]) -> 
         if st.get("seat_level") and st.get("seats"):
             seats = ("Split across these blocks: " if st.get("split") else "Seats: ") + " | ".join(st["seats"])
         elif not st.get("seat_level"):
-            seats = "Showtime is bookable again (seat map couldn't be read right now, so check the seats yourself)"
+            seats = "Showtime is bookable"
         lines += [f"• {_fmt_date(st['date'])} {st['time_label']} — {st['experience']}",
                   f"  {seats}", f"  Book: {st['url']}", ""]
         rows_html.append(f"""

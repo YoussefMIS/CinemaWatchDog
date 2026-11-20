@@ -42,7 +42,6 @@ and your data never leaves your machine.
 | Split a large group across several blocks | ✅ | ✅ |
 | Pick specific rows or seats on an interactive seat map | ✅ | ✅ |
 | Seat type | from the hall | **Regular** · **Premium** |
-| Alert when a sold-out showtime becomes bookable | ✅ | ✅ |
 
 - **Email alerts** to as many recipients as you like, with a **Book** link for each match.
 - **Live dashboard** showing what is available right now. It also plays a sound and shows a browser
@@ -179,8 +178,10 @@ Rows and specific seats can be combined. Leave both empty to accept any seat in 
 - If sending fails (e.g. wrong password or no internet), the alert is retried on the next check.
 - Seats in someone else's basket ("Hold") count as taken. They are often released after about 10 minutes,
   and you'll be alerted then.
-- **Fallback:** if a cinema's booking system is down and none of its seat maps can be read, the app still
-  emails you when a sold-out showtime becomes bookable. The email says the seat map couldn't be checked.
+- **Alerts are only sent for real seats.** You're never emailed just because a showtime became bookable.
+  If a cinema's booking system is down and its seat maps can't be read, the monitor shows a yellow
+  **seat maps unavailable** badge and keeps checking. You're emailed only once matching seats can be
+  confirmed.
 
 ## Running in the background
 
@@ -212,7 +213,7 @@ Monitoring only runs while the app is running and the computer is awake.
 | `python` is not recognized | Reinstall Python and tick **Add python.exe to PATH**, or use the `py` launcher. |
 | Test email fails with "Username and Password not accepted" | Use a Gmail **App Password**, not your normal password, and make sure 2-Step Verification is on. |
 | A monitor shows a red **error** badge | Open the **Activity log** tab. A cinema has probably changed its website, and the scraper in `cinemawatchdog/` needs an update. Please open an issue. |
-| VOX alerts say "seat map couldn't be read" | VOX's online booking is temporarily down. The app recovers automatically once it's back. |
+| A monitor shows **seat maps unavailable** | The cinema's online booking is temporarily down, so seats can't be checked. No alerts are sent meanwhile, and the app recovers automatically once booking is back. |
 | Port 5000 is already in use | Set `CWD_PORT=5050` (or any free port) in `.env`. |
 | No alerts arrive | Check that the monitor is not paused, check your spam folder, and look at the **Alerts** tab. |
 

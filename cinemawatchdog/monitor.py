@@ -151,6 +151,7 @@ class Engine:
         self.last_cycle_at: str | None = None
         self.next_cycle_at: str | None = None
         self._thread: threading.Thread | None = None
+        self._seat_outage: set[str] = set()  # providers whose seat maps are currently unreadable
 
     # ---- logging
     def event(self, level: str, msg: str):
@@ -237,19 +238,23 @@ class Engine:
                 for sid, res in ex.map(fetch, todo):
                     seat_cache[sid] = res
 
-        # If every seat map failed, the site's booking flow is probably down (VOX had hours of
-        # GENERAL_ERROR). Fall back to showtime-level alerts so a sold-out show turning bookable
-        # is still reported.
+        # If every seat map failed, the site's booking flow is probably down. Alerts are only ever
+        # sent for real free seats, so nothing is emailed until seat maps can be read again.
         results = [seat_cache.get(sid) for sid in need]
-        degraded = len(results) >= 3 and all(isinstance(r, Exception) for r in results)
-        if degraded:
-            self.event("warn", f"{prov.short}: seat maps unavailable ({results[0]}); "
-                               "falling back to showtime-level alerts")
+        outage = len(results) >= 3 and all(isinstance(r, Exception) for r in results)
+        if outage != (prov.key in self._seat_outage):
+            if outage:
+                self._seat_outage.add(prov.key)
+                self.event("warn", f"{prov.short}: seat maps can't be read right now ({results[0]}). "
+                                   "No alerts until they work again; checking continues.")
+            else:
+                self._seat_outage.discard(prov.key)
+                self.event("info", f"{prov.short}: seat maps are readable again")
 
         for m in mons:
-            self._evaluate(prov, m, showtimes, seat_cache, degraded)
+            self._evaluate(prov, m, showtimes, seat_cache)
 
-    def _evaluate(self, prov, mon, showtimes, seat_cache, degraded=False):
+    def _evaluate(self, prov, mon, showtimes, seat_cache):
         n = int(mon.get("seats_needed") or 1)
         together = bool(mon.get("together"))
         matches: dict[str, dict] = {}
@@ -273,12 +278,9 @@ class Engine:
                 sm = seat_cache.get(st.showtime_id)
                 if isinstance(sm, Exception):
                     errors.append(f"{st.date} {st.time_label}: {sm}")
-                    if st.key in prev and st.key in prev_info:
-                        # transient error: keep previous state so we don't re-alert later
+                    if st.key in prev and prev_info.get(st.key, {}).get("seat_level"):
+                        # transient error: keep the previous seat match so we don't re-alert later
                         matches[st.key] = {k: v for k, v in prev_info[st.key].items() if k != "key"}
-                    elif degraded:
-                        info["seat_level"] = False
-                        matches[st.key] = info
                     continue
                 if sm is None:
                     continue
@@ -301,7 +303,11 @@ class Engine:
         new_keys = [k for k in matches if k not in prev]
         summary = (f"{len(matches)} matching / {considered} showtimes checked"
                    + (f" ({soldout} sold out)" if soldout else ""))
-        self._save_state(mon, error="; ".join(errors[:3]) or None, summary=summary,
+        error = None
+        if errors:
+            error = (f"Couldn't read the seat map for {len(errors)} of {considered - soldout} bookable "
+                     f"showtime(s), so their seats aren't being checked right now. First error: {errors[0]}")
+        self._save_state(mon, error=error, summary=summary,
                          matching_keys=list(matches.keys()),
                          matches=[{**v, "key": k} for k, v in matches.items()])
 

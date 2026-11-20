@@ -581,7 +581,8 @@ async function loadMonitors() {
     else if (!st.last_check) badges.push(el('span', {class: 'badge wait'}, 'first check pending'));
     else if ((st.matches || []).length) badges.push(el('span', {class: 'badge ok'}, `${st.matches.length} available`));
     else badges.push(el('span', {class: 'badge'}, 'watching'));
-    if (st.error) badges.push(el('span', {class: 'badge err', title: st.error}, 'error'));
+    if (st.error) badges.push(/^Couldn't read the seat map/.test(st.error) ? el('span', {class: 'badge wait', title: st.error}, 'seat maps unavailable')
+      : el('span', {class: 'badge err', title: st.error}, 'error'));
     const card = el('div', {class: 'mon' + (m.active ? '' : ' paused')},
       el('div', {class: 'top'},
         el('div', {},

@@ -15,6 +15,7 @@ DEFAULT_SETTINGS = {
     "smtp_password": "",
     "recipients": [],
     "interval_seconds": 120,
+    "alert_cooldown_minutes": 60,
 }
 
 
@@ -54,6 +55,8 @@ class Store:
                                    if r.strip()]
             if env.get("CWD_INTERVAL_SECONDS", "").isdigit():
                 s["interval_seconds"] = max(30, int(env["CWD_INTERVAL_SECONDS"]))
+            if env.get("CWD_ALERT_COOLDOWN_MINUTES", "").isdigit():
+                s["alert_cooldown_minutes"] = min(1440, int(env["CWD_ALERT_COOLDOWN_MINUTES"]))
             s.update(self._read(self._set_path, {}))
             # mail server settings from the environment always win, so the password never has to be on disk
             if env.get("CWD_SMTP_HOST"):
@@ -104,7 +107,9 @@ class Store:
                 if m["id"] == mid:
                     m.update({k: v for k, v in patch.items() if k not in ("id", "state")})
                     if patch.get("reset_state"):
-                        m["state"] = {}
+                        # keep the cooldown record so editing a monitor can't cause repeat emails
+                        old = m.get("state") or {}
+                        m["state"] = {"alerted_at": old["alerted_at"]} if old.get("alerted_at") else {}
                     m.pop("reset_state", None)
                     self._write(self._mon_path, mons)
                     return m

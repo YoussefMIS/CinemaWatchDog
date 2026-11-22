@@ -131,6 +131,7 @@ Everything can be configured from the **⚙ Settings** page. You can also use en
 | `CWD_SMTP_PORT` | `465` | `465` uses SSL; any other port (e.g. `587`) uses STARTTLS. |
 | `CWD_RECIPIENTS` | none | Comma-separated recipients. A starting value that Settings can change. |
 | `CWD_INTERVAL_SECONDS` | `120` | Time between checks (minimum 30). A starting value that Settings can change. |
+| `CWD_ALERT_COOLDOWN_MINUTES` | `60` | Minimum time before the same showtime is emailed again (0 = off). A starting value that Settings can change. |
 | `CWD_HOST` | `127.0.0.1` | `0.0.0.0` lets other devices on your network open the app. |
 | `CWD_PORT` | `5000` | Web server port. |
 | `CWD_DATA_DIR` | `./data` | Where monitors, settings and alert history are stored. |
@@ -173,8 +174,12 @@ Rows and specific seats can be combined. Leave both empty to accept any seat in 
 
 - Every active monitor is checked about every 2 minutes. Each interval gets a small random variation, so
   requests don't look automated.
-- You get **one email per change**. When a showtime starts matching, you're emailed. If the seats are
-  taken and later free up again, you're emailed again. You won't get the same alert on every check.
+- **No repeat emails.** You're emailed once when a showtime starts matching. While its seats stay free,
+  you're not emailed again. Several showtimes that start matching at the same time are grouped into a
+  single email.
+- **Cooldown (default 60 minutes).** If a showtime's seats are taken and then free up again (e.g. someone
+  held them in a basket), you're only emailed about that showtime again once the cooldown has passed.
+  Editing a monitor doesn't reset the cooldown either. Change it in **⚙ Settings** (0 = no cooldown).
 - If sending fails (e.g. wrong password or no internet), the alert is retried on the next check.
 - Seats in someone else's basket ("Hold") count as taken. They are often released after about 10 minutes,
   and you'll be alerted then.

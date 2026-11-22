@@ -233,6 +233,8 @@ def save_settings():
         body["recipients"] = [r.strip() for r in body["recipients"].replace(";", ",").split(",") if r.strip()]
     if "interval_seconds" in body:
         body["interval_seconds"] = max(30, int(body["interval_seconds"] or 120))
+    if "alert_cooldown_minutes" in body:
+        body["alert_cooldown_minutes"] = max(0, min(1440, int(body["alert_cooldown_minutes"] or 0)))
     if "smtp_port" in body:
         body["smtp_port"] = int(body["smtp_port"] or 465)
     s = store.save_settings(body)

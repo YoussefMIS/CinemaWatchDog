@@ -241,6 +241,8 @@ dialog::backdrop{background:#000a}
   <div class="field"><label>Send alerts to (comma separated)</label><input type="text" id="s-rcpt"></div>
   <div class="field"><label>Check every (seconds)</label><input type="number" id="s-int" min="30" step="10">
     <div class="hint">Default 120. Going much lower than 60 risks the cinemas blocking you.</div></div>
+  <div class="field"><label>Don't email the same showtime again for (minutes)</label><input type="number" id="s-cool" min="0" max="1440" step="5">
+    <div class="hint">Default 60. If a showtime's seats disappear and come back within this time, you're not emailed again. 0 = no cooldown.</div></div>
   <details style="margin-bottom:14px"><summary class="hint" style="cursor:pointer">Advanced SMTP</summary>
     <div class="row" style="margin-top:8px"><input type="text" id="s-host" style="flex:1"><input type="number" id="s-port"></div></details>
   <div class="row">
@@ -650,12 +652,14 @@ async function openSettings() {
   $('#s-user').value = s.smtp_user || ''; $('#s-pass').value = '';
   $('#s-pass').placeholder = s.smtp_password_set ? '•••••••• (saved — leave blank to keep)' : '16-character app password';
   $('#s-rcpt').value = (s.recipients || []).join(', '); $('#s-int').value = s.interval_seconds;
+  $('#s-cool').value = s.alert_cooldown_minutes ?? 60;
   $('#s-host').value = s.smtp_host; $('#s-port').value = s.smtp_port; $('#s-msg').textContent = '';
   $('#dlg-settings').showModal();
 }
 async function saveSettings() {
   return api('/api/settings', {method: 'POST', body: {smtp_user: $('#s-user').value.trim(), smtp_password: $('#s-pass').value.trim(),
-    recipients: $('#s-rcpt').value, interval_seconds: +$('#s-int').value, smtp_host: $('#s-host').value.trim(), smtp_port: +$('#s-port').value}});
+    recipients: $('#s-rcpt').value, interval_seconds: +$('#s-int').value,
+    alert_cooldown_minutes: $('#s-cool').value === '' ? 60 : +$('#s-cool').value, smtp_host: $('#s-host').value.trim(), smtp_port: +$('#s-port').value}});
 }
 $('#btn-settings').addEventListener('click', openSettings);
 $('#s-close').addEventListener('click', () => $('#dlg-settings').close());

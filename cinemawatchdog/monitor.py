@@ -300,14 +300,30 @@ class Engine:
             h, mi = map(int, v["time"].split(":"))
             return (v["date"], (h + 24 if h < 6 else h) * 60 + mi, v["experience"])
         matches = {k: matches[k] for k in sorted(matches, key=order)}
-        new_keys = [k for k in matches if k not in prev]
+        # Cooldown: a showtime that was emailed recently isn't emailed again, even if its seats
+        # vanished and came back in between (e.g. someone held them in a basket for 10 minutes).
+        now = datetime.now()
+        cooldown = timedelta(minutes=max(0, int(self.store.settings().get("alert_cooldown_minutes") or 0)))
+        alerted_at = {}
+        for k, v in (state.get("alerted_at") or {}).items():
+            try:
+                if now - datetime.fromisoformat(v) < cooldown:
+                    alerted_at[k] = v
+            except (TypeError, ValueError):
+                pass
+        appeared = [k for k in matches if k not in prev]
+        new_keys = [k for k in appeared if k not in alerted_at]
+        quiet = [k for k in appeared if k in alerted_at]
+        if quiet:
+            self.event("info", f"{prov.short} · {mon['movie_name']}: {len(quiet)} showtime(s) available again, "
+                               "but already emailed within the cooldown, so no new email")
         summary = (f"{len(matches)} matching / {considered} showtimes checked"
                    + (f" ({soldout} sold out)" if soldout else ""))
         error = None
         if errors:
             error = (f"Couldn't read the seat map for {len(errors)} of {considered - soldout} bookable "
                      f"showtime(s), so their seats aren't being checked right now. First error: {errors[0]}")
-        self._save_state(mon, error=error, summary=summary,
+        self._save_state(mon, error=error, summary=summary, alerted_at=alerted_at,
                          matching_keys=list(matches.keys()),
                          matches=[{**v, "key": k} for k, v in matches.items()])
 
@@ -319,6 +335,10 @@ class Engine:
                 sent_to = send_alert_email(self.store.settings(), prov, mon, new)
                 self.event("info", f"Email sent to {', '.join(sent_to)}")
                 emailed = True
+                st = dict((self.store.get_monitor(mon["id"]) or {}).get("state") or {})
+                st["alerted_at"] = {**(st.get("alerted_at") or {}),
+                                    **{k: now.isoformat(timespec="seconds") for k in new_keys}}
+                self.store.update_monitor_state(mon["id"], st)
             except Exception as e:
                 self.event("error", f"Email failed (will retry next check): {e}")
                 # forget these keys so the alert is retried on the next cycle
